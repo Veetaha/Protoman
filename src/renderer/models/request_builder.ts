@@ -22,6 +22,12 @@ export interface RequestBody {
   protobuf: MessageValue | undefined;
 }
 
+function encodeBase64ProtobufInJsonString(bin: Buffer): Buffer {
+  const quote = Uint8Array.from(['"'.charCodeAt(0)]);
+  const base64Encoded = Buffer.from(bin.toString('base64'), 'utf8');
+  return Buffer.concat([quote, base64Encoded, quote]);
+}
+
 export async function toRequestDescriptor(
   builder: RequestBuilder,
   env: Env,
@@ -31,9 +37,9 @@ export async function toRequestDescriptor(
   const varMap = toVarMap(env);
 
   let body;
-  if (bodyType === 'protobuf' && bodies.protobuf) {
+  if (bodyType === 'protobuf' && bodies.protobuf && url.startsWith('https://lambda/')) {
     const withEnv = applyToProtoMessage(bodies.protobuf, (s: string): string => applyEnvs(s, varMap));
-    body = await serializeProtobuf(withEnv, ctx);
+    body = encodeBase64ProtobufInJsonString(await serializeProtobuf(withEnv, ctx));
   } else {
     body = undefined;
   }
